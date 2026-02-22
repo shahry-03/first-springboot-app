@@ -1,10 +1,12 @@
-package com.demo.first.app;
+package com.demo.first.app.controller;
 
+import com.demo.first.app.service.UserService;
+import com.demo.first.app.model.User;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,48 +14,49 @@ import java.util.Map;
 @RestController
 @RequestMapping("user")
 public class UserController {
+    private UserService userService = new UserService();
 
-    public Map<Integer, User> userDb = new HashMap<>();
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
 
     @PostMapping
     public ResponseEntity<User> createUser(@RequestBody User user){
-        System.out.println(user.getEmail());
-        userDb.putIfAbsent(user.getId(), user);
-//        return ResponseEntity.status(HttpStatus.CREATED).body(user);
-        return new ResponseEntity<>(user, HttpStatus.CREATED);
+        User createdUser = userService.createUser(user);
+        return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
     }
 
     @PutMapping
-    public ResponseEntity<String> updateUser(@RequestBody User user){
-        if(userDb.containsKey(user.getId())){
-            userDb.put(user.getId(), user);
-            return ResponseEntity.status(HttpStatus.OK).body("User updated!");
-        }
+    public ResponseEntity<User> updateUser(@RequestBody User user){
+        User updatedUser = userService.updatedUser(user);
+        if (updatedUser == null)
+            return ResponseEntity.notFound().build();
         //return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found!");
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(updatedUser);
     }
 
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteUser(@PathVariable int id){
-        if (!userDb.containsKey(id))
+        boolean isDeleted = userService.deleteUser(id);
+        if (!isDeleted)
             return ResponseEntity.notFound().build();
-        userDb.remove(id);
         return ResponseEntity.ok( "User deleted!");
     }
 
     @GetMapping
     public List<User> getUsers(){
-        return new ArrayList<>(userDb.values());
+        return userService.getAllUsers();
     }
 
     //@GetMapping("/users", "/user/{id}")
 
     @GetMapping("/{userId}")
     public ResponseEntity<User> getUserById(@PathVariable("userId") int id){
-        if (!userDb.containsKey(id))
+        User user =  userService.getUserById(id);
+        if (user == null)
             return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(userDb.get(id));
+        return ResponseEntity.ok(user);
     }
 
     @GetMapping("/{userId}/orders/{orderId}")
@@ -62,9 +65,10 @@ public class UserController {
             @PathVariable int orderId
     ){
         System.out.println("Order id: "+ orderId);
-        if (!userDb.containsKey(id))
+        User user =  userService.getUserById(id);
+        if (user == null)
             return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(userDb.get(id));
+        return ResponseEntity.ok(user);
     }
 
     // /search?name=shahryar
@@ -73,12 +77,7 @@ public class UserController {
             @RequestParam(required = false, defaultValue = "shahry") String name,
             @RequestParam(required = false, defaultValue = "email") String email
     ){
-        System.out.println(name);
-        List<User> users = userDb.values().stream()
-                .filter(u -> u.getName().equalsIgnoreCase(name))
-                .filter(u -> u.getEmail().equalsIgnoreCase(email))
-                .toList();
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(userService.searchUser(name, email));
     }
 
     @GetMapping("/Info/{id}")
@@ -90,4 +89,6 @@ public class UserController {
                 + " id: " + id
                 + " name: " + name;
     }
+
+
 }
